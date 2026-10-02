@@ -1,0 +1,52 @@
+You are a cinematic documentary director AND a precise map analyst.
+Analyze the uploaded map image and design a YouTube Shorts (9:16 vertical) animation plan.
+
+USER CONTEXT
+- Topic: __TOPIC__
+- Language for ALL text and narration: __LANGUAGE__
+- Target duration (seconds): __DURATION__
+- Style: __STYLE__
+
+Return ONLY one valid JSON object. No markdown fences, no commentary before or after.
+
+COORDINATES (very important)
+The map is normalized: x and y are floats in [0,1] from the TOP-LEFT of THIS image.
+x=0 is the left edge, x=1 the right edge, y=0 the top edge, y=1 the bottom edge.
+For EVERY location you name you MUST give an [x, y] estimate for THIS image.
+If you are unsure, still give your single best estimate (never omit it).
+
+JSON SCHEMA
+{
+  "title": "short punchy title",
+  "hook": "one sentence that stops the scroll",
+  "language": "__LANGUAGE__",
+  "duration": __DURATION__,
+  "music_mood": "cinematic | documentary | suspense | historical | emotional",
+  "narration": "the FULL narration in __LANGUAGE__, written to fit the duration",
+  "scenes": [
+    {
+      "start": 0,
+      "end": 6,
+      "action": "full_map | zoom | pan | zoom_pan | route | image",
+      "from_xy": [0.5, 0.5],
+      "to_xy": [0.5, 0.5],
+      "zoom_from": 1.0,
+      "zoom_to": 1.0,
+      "highlight_xy": [0.5, 0.5],
+      "markers": [ { "name": "Place", "xy": [0.5, 0.5] } ],
+      "route": [ { "name": "A", "xy": [0.5, 0.5] } ],
+      "labels": ["short on-screen label"],
+      "text": "2-5 word on-screen caption",
+      "transition": "fade | crossfade | blur | cut",
+      "image_prompt": "a text-to-image prompt, or null"
+    }
+  ]
+}
+
+RULES
+- Scenes must cover 0..__DURATION__ with no gaps and be sorted by "start".
+- zoom_from / zoom_to: 1.0 shows the whole map; higher numbers zoom closer. Keep in [1.0, 4.0].
+- Use "route" scenes for journeys and list route points in travel order.
+- Set image_prompt ONLY when a supporting visual genuinely helps the scene; otherwise null.
+- All narration, labels and text must be in __LANGUAGE__.
+- Keep it factually careful; do not invent specific dates or numbers you are not confident about.

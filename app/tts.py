@@ -1,0 +1,99 @@
+"""Narration audio via Gemini TTS (with an optional gTTS fallback)."""
+import base64
+import re
+import wave
+from pathlib import Path
+
+from .config import SECRETS, SETTINGS
+
+SAMPLE_RATE = 24000  # Gemini TTS returns 24 kHz, 16-bit, mono PCM
+
+
+def _client():
+    from google import genai
+
+    if not SECRETS.gemini_api_key:
+        raise RuntimeError("GEMINI_API_KEY is not set")
+    return genai.Client(api_key=SECRETS.gemini_api_key)
+
+
+def _chunks(text: str, max_chars: int = 600):
+    """Split narration on sentence boundaries so each TTS call stays small."""
+    parts = [p for p in re.split(r"(?<=[।.!?])\s+", text.strip()) if p]
+    if not parts:
+        return [text]
+    out, current = [], ""
+    for part in parts:
+        if len(current) + len(part) + 1 <= max_chars:
+            current = (current + " " + part).strip()
+        else:
+            if current:
+                out.append(current)
+            current = part
+    if current:
+        out.append(current)
+    return out
+
+
+def _write_wav(path, pcm: bytes):
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(path), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(SAMPLE_RATE)
+        wav.writeframes(pcm)
+
+
+def synthesize(text: str, out_wav, voice: str | None = None) -> str:
+    """Generate narration audio and write it to out_wav. Returns the path."""
+    from google.genai import types
+
+    voice = voice or SETTINGS["gemini"]["tts_voice"]
+    client = _client()
+    pcm = bytearray()
+
+    for chunk in _chunks(text):
+        response = client.models.generate_content(
+            model=SETTINGS["gemini"]["tts_model"],
+            contents=chunk,
+            config=types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                    )
+                ),
+            ),
+        )
+        data = response.candidates[0].content.parts[0].inline_data.data
+        if isinstance(data, str):
+            data = base64.b64decode(data)
+        pcm.extend(data)
+
+    _write_wav(out_wav, bytes(pcm))
+    return str(out_wav)
+
+
+def synthesize_with_fallback(text: str, out_wav, voice=None) -> str:
+    """Try Gemini TTS; if it fails, fall back to local gTTS if available."""
+    try:
+        return synthesize(text, out_wav, voice)
+    except Exception as exc:  # noqa: BLE001 - we want to continue without audio
+        print(f"[tts] Gemini TTS failed ({exc}); trying local fallback")
+    try:
+        from gtts import gTTS  # optional dependency
+
+        mp3 = str(Path(out_wav).with_suffix(".mp3"))
+        gTTS(text=text).save(mp3)
+        return mp3
+    except Exception as exc:  # noqa: BLE001
+        print(f"[tts] Fallback TTS unavailable ({exc}); continuing without narration")
+        return ""
+
+
+def duration_of(wav_path) -> float:
+    try:
+        with wave.open(str(wav_path), "rb") as wav:
+            return wav.getnframes() / float(wav.getframerate())
+    except Exception:  # noqa: BLE001
+        return 0.0

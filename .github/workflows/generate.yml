@@ -1,0 +1,108 @@
+name: Generate Map Short
+
+on:
+  workflow_dispatch:
+    inputs:
+      map_url:
+        description: "Direct URL to a map image (leave empty to use a file already in input/)"
+        required: false
+        default: ""
+      topic:
+        description: "Topic / angle"
+        required: false
+        default: ""
+      language:
+        description: "Language for narration and text"
+        required: false
+        default: "Hindi"
+      duration:
+        description: "Duration in seconds (30-60 recommended)"
+        required: false
+        default: "45"
+      resolution:
+        description: "720p | 1080p | 1440p | 2160p"
+        required: false
+        default: "1080p"
+      style:
+        description: "Video style"
+        required: false
+        default: "cinematic documentary"
+      enable_images:
+        description: "Generate supporting images locally (SD-Turbo, slow)"
+        type: boolean
+        default: false
+      upload:
+        description: "Upload the finished video to YouTube"
+        type: boolean
+        default: false
+      privacy:
+        description: "public | private | unlisted"
+        required: false
+        default: "private"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ffmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-core fonts-noto-devanagari
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          if [ "${{ inputs.enable_images }}" = "true" ]; then
+            pip install torch --index-url https://download.pytorch.org/whl/cpu
+            pip install diffusers transformers accelerate safetensors
+          fi
+
+      - name: Fetch map (optional)
+        if: ${{ inputs.map_url != '' }}
+        run: |
+          mkdir -p input
+          curl -L "${{ inputs.map_url }}" -o input/map.png
+
+      - name: Generate the Short
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          ENABLE_IMAGE_GEN: ${{ inputs.enable_images }}
+        run: |
+          ARGS=(--topic "${{ inputs.topic }}" \
+                --language "${{ inputs.language }}" \
+                --duration "${{ inputs.duration }}" \
+                --resolution "${{ inputs.resolution }}" \
+                --style "${{ inputs.style }}" \
+                --privacy "${{ inputs.privacy }}")
+          if [ "${{ inputs.enable_images }}" = "true" ]; then
+            ARGS+=(--images)
+          fi
+          if [ "${{ inputs.upload }}" = "true" ]; then
+            ARGS+=(--upload)
+          fi
+          python -m app.main "${ARGS[@]}"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-short
+          path: |
+            output/video.mp4
+            output/thumbnail.jpg
+            output/metadata.json
+            output/plan.json
+          if-no-files-found: warn

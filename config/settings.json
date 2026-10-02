@@ -1,0 +1,42 @@
+{
+  "video": {
+    "fps": 30,
+    "resolution": "1080p",
+    "crf": 18,
+    "preset": "medium",
+    "default_duration": 45,
+    "default_language": "Hindi",
+    "default_style": "cinematic documentary"
+  },
+  "resolution_presets": {
+    "720p": {
+      "width": 720,
+      "height": 1280
+    },
+    "1080p": {
+      "width": 1080,
+      "height": 1920
+    },
+    "1440p": {
+      "width": 1440,
+      "height": 2560
+    },
+    "2160p": {
+      "width": 2160,
+      "height": 3840
+    }
+  },
+  "gemini": {
+    "analysis_model": "gemini-2.5-flash",
+    "tts_model": "gemini-2.5-flash-preview-tts",
+    "tts_voice": "Charon"
+  },
+  "features": {
+    "captions": false,
+    "tts": true,
+    "background_music": true,
+    "supporting_images": false,
+    "youtube_upload": false
+  },
+  "music_volume": 0.12
+}

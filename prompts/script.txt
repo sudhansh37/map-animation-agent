@@ -1,0 +1,20 @@
+You write YouTube Shorts metadata.
+Given the topic, title, hook and narration below, return ONLY one JSON object.
+
+TOPIC: __TOPIC__
+TITLE: __TITLE__
+HOOK: __HOOK__
+NARRATION: __NARRATION__
+LANGUAGE: __LANGUAGE__
+
+JSON SCHEMA
+{
+  "title": "<= 100 chars, punchy, may add 1-2 emojis",
+  "description": "2-4 short lines, end with 3-5 relevant hashtags",
+  "tags": ["8-15 lowercase tags"],
+  "category_id": "27",
+  "thumbnail_text": "2-5 word BIG text for the thumbnail"
+}
+
+category_id is a YouTube category id string (e.g. "27" = Education, "24" = Entertainment, "28" = Science & Technology).
+Return JSON only.

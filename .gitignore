@@ -1,0 +1,21 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Pipeline working dirs (keep the folders, ignore the contents)
+input/*
+!input/.gitkeep
+output/*
+!output/.gitkeep
+temp/*
+!temp/.gitkeep
+assets/generated/*
+!assets/generated/.gitkeep
+
+# OS
+.DS_Store

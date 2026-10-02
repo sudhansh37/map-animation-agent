@@ -1,0 +1,21 @@
+# ---- Core ----
+python-dotenv>=1.0
+requests>=2.31
+Pillow>=10.0
+numpy>=1.26
+
+# ---- Gemini (brain: map analysis + script, and TTS) ----
+google-genai>=0.3
+
+# ---- YouTube upload (OAuth via refresh token) ----
+google-api-python-client>=2.100
+google-auth>=2.30
+google-auth-oauthlib>=1.2
+
+# ---- OPTIONAL: local open-source text-to-image (SD-Turbo) on CPU ----
+# Only needed when ENABLE_IMAGE_GEN=true. These are heavy; install on demand.
+# torch>=2.2
+# diffusers>=0.27
+# transformers>=4.40
+# accelerate>=0.30
+# safetensors>=0.4
