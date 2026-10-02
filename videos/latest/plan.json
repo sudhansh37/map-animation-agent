@@ -1,0 +1,115 @@
+{
+  "title": "दुनिया का एक अनूठा सफर",
+  "hook": "क्या आप दुनिया के इन महाद्वीपों के बारे में जानते हैं?",
+  "language": "Hindi",
+  "duration": 30.0,
+  "music_mood": "cinematic",
+  "narration": "हमारी यह सुंदर पृथ्वी विभिन्न महाद्वीपों और महासागरों से मिलकर बनी है। आइए, उत्तर अमेरिका से अपनी यात्रा शुरू करें और एशिया की ओर बढ़ें।",
+  "scenes": [
+    {
+      "start": 0.0,
+      "end": 10.0,
+      "action": "full_map",
+      "from_xy": [
+        0.5,
+        0.5
+      ],
+      "to_xy": [
+        0.5,
+        0.5
+      ],
+      "zoom_from": 1.0,
+      "zoom_to": 1.5,
+      "highlight_xy": [
+        0.2,
+        0.3
+      ],
+      "markers": [
+        {
+          "name": "उत्तर अमेरिका",
+          "xy": [
+            0.2,
+            0.3
+          ]
+        }
+      ],
+      "route": [],
+      "labels": [
+        "उत्तर अमेरिका"
+      ],
+      "text": "विशाल पृथ्वी का नक्शा",
+      "transition": "fade",
+      "image_prompt": null
+    },
+    {
+      "start": 10.0,
+      "end": 20.0,
+      "action": "pan",
+      "from_xy": [
+        0.2,
+        0.3
+      ],
+      "to_xy": [
+        0.5,
+        0.3
+      ],
+      "zoom_from": 1.5,
+      "zoom_to": 2.0,
+      "highlight_xy": [
+        0.5,
+        0.3
+      ],
+      "markers": [
+        {
+          "name": "यूरोप",
+          "xy": [
+            0.5,
+            0.3
+          ]
+        }
+      ],
+      "route": [],
+      "labels": [
+        "यूरोप"
+      ],
+      "text": "इतिहास और संस्कृति",
+      "transition": "crossfade",
+      "image_prompt": null
+    },
+    {
+      "start": 20.0,
+      "end": 30.0,
+      "action": "zoom_pan",
+      "from_xy": [
+        0.5,
+        0.3
+      ],
+      "to_xy": [
+        0.75,
+        0.35
+      ],
+      "zoom_from": 2.0,
+      "zoom_to": 2.5,
+      "highlight_xy": [
+        0.75,
+        0.35
+      ],
+      "markers": [
+        {
+          "name": "एशिया",
+          "xy": [
+            0.75,
+            0.35
+          ]
+        }
+      ],
+      "route": [],
+      "labels": [
+        "एशिया"
+      ],
+      "text": "सबसे बड़ा महाद्वीप",
+      "transition": "fade",
+      "image_prompt": null
+    }
+  ]
+}
