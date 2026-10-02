@@ -7,8 +7,12 @@ on:
         description: "Direct URL to a map image (leave empty to use a file in input/ or the bundled sample map)"
         required: false
         default: ""
+      state:
+        description: "Indian state name for district-reveal mode; boundaries are downloaded automatically (e.g. Kerala). Leave empty unless you want this mode."
+        required: false
+        default: ""
       districts_geojson:
-        description: "Path to a districts GeoJSON in the repo to use district-reveal mode (e.g. assets/geo/uttar-pradesh.geojson). Leave empty for the image-map mode."
+        description: "Or: path to a districts GeoJSON already in the repo (e.g. assets/geo/uttar-pradesh.geojson)."
         required: false
         default: ""
       topic:
@@ -88,6 +92,16 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           ENABLE_IMAGE_GEN: ${{ inputs.enable_images }}
         run: |
+          if [ -n "${{ inputs.state }}" ]; then
+            python scripts/fetch_boundaries.py --state "${{ inputs.state }}" --out-dir assets/geo
+            SLUG=$(python -c "import re,sys;print(re.sub(r'[^a-z0-9]+','-',sys.argv[1].lower()).strip('-'))" "${{ inputs.state }}")
+            python scripts/make_district_short.py \
+              --geojson "assets/geo/$SLUG.geojson" \
+              --resolution "${{ inputs.resolution }}" \
+              --duration "${{ inputs.duration }}" \
+              --out output/video.mp4
+            exit 0
+          fi
           if [ -n "${{ inputs.districts_geojson }}" ]; then
             python scripts/make_district_short.py \
               --geojson "${{ inputs.districts_geojson }}" \

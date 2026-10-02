@@ -45,11 +45,19 @@ python scripts/make_district_short.py \
 ```
 
 A ready Uttar Pradesh districts file is bundled at
-`assets/geo/uttar-pradesh.geojson` (75 districts). Swap in any other state's
-GeoJSON to make the same video for it.
+`assets/geo/uttar-pradesh.geojson` (75 districts).
 
-On GitHub Actions, run the workflow with the `districts_geojson` input set to
-`assets/geo/uttar-pradesh.geojson` to generate one.
+For any other Indian state you do not need to hunt for a file - one command
+fetches the boundaries (no API key):
+
+```bash
+python scripts/fetch_boundaries.py --state "Kerala" --out-dir assets/geo
+python scripts/make_district_short.py --geojson assets/geo/kerala.geojson \
+    --resolution 720p --duration 20 --out output/video.mp4
+```
+
+On GitHub Actions, run the workflow with the `state` input (e.g. `Kerala`) and
+it downloads the boundaries and renders the Short in one go.
 
 ## API keys — what you need to add
 
