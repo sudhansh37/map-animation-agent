@@ -6,25 +6,11 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from .config import ROOT, SETTINGS
-from .utils import ffmpeg_bin
+from .utils import ffmpeg_bin, load_font
 
 
-def _load_font(size: int):
-    candidates = [
-        ROOT / "assets" / "fonts" / "NotoSans-Bold.ttf",
-        ROOT / "assets" / "fonts" / "NotoSansDevanagari-Bold.ttf",
-        Path("/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf"),
-        Path("/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"),
-        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
-        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            try:
-                return ImageFont.truetype(str(path), size)
-            except OSError:
-                continue
-    return ImageFont.load_default()
+def _load_font(size: int, text: str = ""):
+    return load_font(size, text)
 
 
 def _wrap(draw, text, font, max_width):
@@ -43,9 +29,9 @@ def _wrap(draw, text, font, max_width):
     return lines
 
 
-def render_video(engine, plan, out_path, narration=None, music=None, srt=None) -> str:
-    """Pipe rendered frames into FFmpeg and mux narration + music."""
-    W, H, fps = engine.W, engine.H, engine.fps
+def render_stream(frames, out_path, width, height, fps, duration=None,
+                  narration=None, music=None, srt=None) -> str:
+    """Pipe an iterable of raw RGB24 frames into FFmpeg and mux audio."""
     crf = SETTINGS["video"]["crf"]
     preset = SETTINGS["video"]["preset"]
     volume = SETTINGS.get("music_volume", 0.12)
@@ -53,7 +39,7 @@ def render_video(engine, plan, out_path, narration=None, music=None, srt=None) -
     cmd = [
         ffmpeg_bin(), "-y",
         "-f", "rawvideo", "-pix_fmt", "rgb24",
-        "-s", f"{W}x{H}", "-r", str(fps), "-i", "-",
+        "-s", f"{width}x{height}", "-r", str(fps), "-i", "-",
     ]
 
     index = 1
@@ -82,9 +68,7 @@ def render_video(engine, plan, out_path, narration=None, music=None, srt=None) -
     vf = []
     if srt and Path(srt).exists():
         escaped = str(srt).replace("\\", "/").replace(":", r"\:").replace("'", r"\'")
-        vf.append(
-            f"subtitles='{escaped}':force_style='Fontsize=16,Alignment=2,MarginV=90'"
-        )
+        vf.append(f"subtitles='{escaped}':force_style='Fontsize=16,Alignment=2,MarginV=90'")
 
     cmd += ["-c:v", "libx264", "-preset", preset, "-crf", str(crf), "-pix_fmt", "yuv420p"]
     if vf:
@@ -94,11 +78,10 @@ def render_video(engine, plan, out_path, narration=None, music=None, srt=None) -
     cmd += ["-map", "0:v"]
     if audio_map:
         cmd += ["-map", audio_map, "-c:a", "aac", "-b:a", "192k"]
-    # Cap the output at the planned duration instead of -shortest, so a short
+    # Cap the output at the intended duration instead of -shortest, so a short
     # narration does not truncate the video.
-    duration = float(plan.get("duration", 0) or 0)
-    if duration > 0:
-        cmd += ["-t", f"{duration:.3f}"]
+    if duration:
+        cmd += ["-t", f"{float(duration):.3f}"]
     cmd += [str(out_path)]
 
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
@@ -106,7 +89,7 @@ def render_video(engine, plan, out_path, narration=None, music=None, srt=None) -
         cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
     )
     try:
-        for frame in engine.frames(plan):
+        for frame in frames:
             proc.stdin.write(frame)
         proc.stdin.close()
     except BrokenPipeError:
@@ -117,8 +100,23 @@ def render_video(engine, plan, out_path, narration=None, music=None, srt=None) -
     return str(out_path)
 
 
+def render_video(engine, plan, out_path, narration=None, music=None, srt=None) -> str:
+    """Render a MapEngine plan (kept for the image-map pipeline)."""
+    return render_stream(
+        engine.frames(plan),
+        out_path,
+        engine.W,
+        engine.H,
+        engine.fps,
+        duration=plan.get("duration"),
+        narration=narration,
+        music=music,
+        srt=srt,
+    )
+
+
 def make_thumbnail(map_path, text, out_path, width=1080, height=1920) -> str:
-    """Simple, readable Shorts thumbnail from the map."""
+    """Simple, readable Shorts thumbnail from an image."""
     base = Image.open(map_path).convert("RGB")
     k = max(width / base.width, height / base.height)
     base = base.resize((int(base.width * k), int(base.height * k)), Image.LANCZOS)
@@ -128,7 +126,7 @@ def make_thumbnail(map_path, text, out_path, width=1080, height=1920) -> str:
     thumb = Image.blend(thumb, Image.new("RGB", (width, height), (0, 0, 0)), 0.4)
 
     draw = ImageDraw.Draw(thumb)
-    font = _load_font(int(height * 0.075))
+    font = _load_font(int(height * 0.075), text)
     lines = _wrap(draw, text, font, int(width * 0.85))
     line_h = int(height * 0.075 * 1.2)
     total_h = line_h * len(lines)
@@ -142,4 +140,25 @@ def make_thumbnail(map_path, text, out_path, width=1080, height=1920) -> str:
 
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     thumb.save(out_path, quality=92)
+    return str(out_path)
+
+
+def make_district_thumbnail(engine, text, out_path) -> str:
+    """Thumbnail for the district engine: last frame + a title bar."""
+    frame = None
+    for frame_bytes in engine.frames(engine.intro + 0.1, show_labels=False):
+        frame = frame_bytes
+    img = Image.frombytes("RGB", (engine.W, engine.H), frame) if frame else engine._bg.copy()
+    draw = ImageDraw.Draw(img, "RGBA")
+    font = _load_font(int(engine.H * 0.06), text)
+    lines = _wrap(draw, text, font, int(engine.W * 0.85))
+    y = engine.H * 0.06
+    for line in lines:
+        w = draw.textlength(line, font=font)
+        x = (engine.W - w) / 2
+        draw.rectangle([x - 16, y - 10, x + w + 16, y + engine.H * 0.06 * 1.1], fill=(0, 0, 0, 200))
+        draw.text((x, y), line, font=font, fill=(255, 255, 255))
+        y += engine.H * 0.06 * 1.15
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    img.save(out_path, quality=92)
     return str(out_path)

@@ -29,6 +29,28 @@ MP4 files in the file view):
 
 The same files are also attached to the workflow run as the `map-short` artifact.
 
+## District-reveal mode (the "UP districts" style)
+
+Besides the image-map pipeline there is a second engine that reproduces the
+popular Indian-geography Short style: a dark cinematic map where districts
+light up one by one, each with a vivid fill, a glowing outline and a callout
+label box.
+
+It renders straight from a GeoJSON of polygons - no map service, no paid API:
+
+```bash
+python scripts/make_district_short.py \
+    --geojson assets/geo/uttar-pradesh.geojson \
+    --resolution 720p --duration 26 --out output/video.mp4
+```
+
+A ready Uttar Pradesh districts file is bundled at
+`assets/geo/uttar-pradesh.geojson` (75 districts). Swap in any other state's
+GeoJSON to make the same video for it.
+
+On GitHub Actions, run the workflow with the `districts_geojson` input set to
+`assets/geo/uttar-pradesh.geojson` to generate one.
+
 ## API keys — what you need to add
 
 Put these in a local `.env` (copy `.env.example`) **and** in the repository's

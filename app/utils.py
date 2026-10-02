@@ -14,6 +14,57 @@ def ffmpeg_bin() -> str:
     return os.getenv("FFMPEG_BIN", "ffmpeg")
 
 
+# ------------------------------------------------------------------- fonts
+_DEVANAGARI = re.compile(r"[\u0900-\u097F]")
+_FONT_FILES = {
+    "dev": ["NotoSansDevanagari-Bold.ttf", "NotoSansDevanagari-Regular.ttf"],
+    "lat": ["NotoSans-Bold.ttf", "NotoSans-Regular.ttf"],
+}
+_SYS_FONTS = {
+    "dev": [
+        "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
+    ],
+    "lat": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ],
+}
+_font_cache = {}
+
+
+def load_font(size: int, text: str = "", bold: bool = True):
+    """Pick a font that actually covers the script of `text`.
+
+    Devanagari text needs a Devanagari font; Latin text needs a Latin font.
+    (Noto Sans Devanagari has no Latin glyphs, and Noto Sans has no
+    Devanagari, so the choice has to be made per string.)
+    """
+    from PIL import ImageFont
+
+    script = "dev" if _DEVANAGARI.search(text or "") else "lat"
+    key = (int(size), script, bool(bold))
+    if key in _font_cache:
+        return _font_cache[key]
+
+    names = _FONT_FILES[script]
+    if not bold:
+        names = [n.replace("Bold", "Regular") for n in names]
+    candidates = [ROOT / "assets" / "fonts" / n for n in names]
+    candidates += [Path(p) for p in _SYS_FONTS[script]]
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                font = ImageFont.truetype(str(path), int(size))
+                _font_cache[key] = font
+                return font
+            except OSError:
+                continue
+    font = ImageFont.load_default()
+    _font_cache[key] = font
+    return font
+
+
 # ---------------------------------------------------------------- filesystem
 def ensure_dirs(*relative_names: str) -> None:
     for name in relative_names:

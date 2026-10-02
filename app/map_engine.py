@@ -13,7 +13,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from .config import ROOT
-from .utils import clamp, ease_in_out, lerp, pulse
+from .utils import clamp, ease_in_out, lerp, load_font, pulse
 
 
 class MapEngine:
@@ -62,30 +62,8 @@ class MapEngine:
         alpha = np.clip((dist - 0.55) / 0.45, 0, 1) * 0.55 * 255
         return Image.fromarray(alpha.astype("uint8"), "L")
 
-    def font(self, size):
-        size = int(size)
-        if size in self._fonts:
-            return self._fonts[size]
-        candidates = [
-            ROOT / "assets" / "fonts" / "NotoSansDevanagari-Regular.ttf",
-            ROOT / "assets" / "fonts" / "NotoSans-Regular.ttf",
-            Path("/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf"),
-            Path("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"),
-            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
-        ]
-        font = None
-        for path in candidates:
-            if os.path.exists(path):
-                try:
-                    font = ImageFont.truetype(str(path), size)
-                    break
-                except OSError:
-                    continue
-        if font is None:
-            font = ImageFont.load_default()
-        self._fonts[size] = font
-        return font
+    def font(self, size, text=""):
+        return load_font(size, text)
 
     # ---------------------------------------------------------------- camera
     def _scene_at(self, plan, t):
@@ -203,7 +181,7 @@ class MapEngine:
 
     def _label(self, draw, frame, text, pos, anchor_center=False):
         unit = self.W / 1080.0
-        font = self.font(int(40 * unit))
+        font = self.font(int(40 * unit), text)
         bbox = draw.textbbox((0, 0), text, font=font)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
         x, y = pos
@@ -217,7 +195,7 @@ class MapEngine:
     def _draw_title(self, frame, text):
         draw = ImageDraw.Draw(frame, "RGBA")
         unit = self.W / 1080.0
-        font = self.font(int(58 * unit))
+        font = self.font(int(58 * unit), text)
         bbox = draw.textbbox((0, 0), text, font=font)
         tw = bbox[2] - bbox[0]
         x = (self.W - tw) / 2

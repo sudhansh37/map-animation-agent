@@ -7,6 +7,10 @@ on:
         description: "Direct URL to a map image (leave empty to use a file in input/ or the bundled sample map)"
         required: false
         default: ""
+      districts_geojson:
+        description: "Path to a districts GeoJSON in the repo to use district-reveal mode (e.g. assets/geo/uttar-pradesh.geojson). Leave empty for the image-map mode."
+        required: false
+        default: ""
       topic:
         description: "Topic / angle"
         required: false
@@ -84,6 +88,14 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           ENABLE_IMAGE_GEN: ${{ inputs.enable_images }}
         run: |
+          if [ -n "${{ inputs.districts_geojson }}" ]; then
+            python scripts/make_district_short.py \
+              --geojson "${{ inputs.districts_geojson }}" \
+              --resolution "${{ inputs.resolution }}" \
+              --duration "${{ inputs.duration }}" \
+              --out output/video.mp4
+            exit 0
+          fi
           ARGS=(--topic "${{ inputs.topic }}" \
                 --language "${{ inputs.language }}" \
                 --duration "${{ inputs.duration }}" \
