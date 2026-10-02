@@ -16,6 +16,19 @@ MAP IMAGE -> GEMINI ANALYSIS -> PLAN JSON -> NARRATION -> RENDER -> 1080x1920 MP
 - `output/metadata.json` — title, description, tags, category
 - `output/plan.json` — the normalised animation plan (useful for debugging)
 
+## Where the result shows up on GitHub
+
+After every run the workflow copies the result into `videos/latest/` and commits
+it back into the repository, so you can open it directly on GitHub (GitHub plays
+MP4 files in the file view):
+
+- `videos/latest/video.mp4`
+- `videos/latest/thumbnail.jpg`
+- `videos/latest/metadata.json`
+- `videos/latest/plan.json`
+
+The same files are also attached to the workflow run as the `map-short` artifact.
+
 ## API keys — what you need to add
 
 Put these in a local `.env` (copy `.env.example`) **and** in the repository's
@@ -34,6 +47,13 @@ on the local open-source text-to-image engine (SD-Turbo, runs on CPU).
 
 **Minimum to render a video: just `GEMINI_API_KEY`.** The three YouTube secrets
 are only needed when you pass `--upload`.
+
+Model names are resolved automatically: the code tries `GEMINI_MODEL` (env),
+then the configured model, then a candidate list, until one works. Defaults
+target the current Gemini 3.x line (`gemini-3.5-flash-lite` for analysis,
+`gemini-3.8-flash-lite-tts` for speech). Override with `GEMINI_MODEL` /
+`GEMINI_TTS_MODEL` if your key uses different models. If Gemini TTS is not
+available on your key, narration falls back to gTTS automatically.
 
 ## Project layout
 

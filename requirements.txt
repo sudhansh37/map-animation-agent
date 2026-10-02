@@ -7,6 +7,9 @@ numpy>=1.26
 # ---- Gemini (brain: map analysis + script, and TTS) ----
 google-genai>=0.3
 
+# ---- Optional TTS fallback if Gemini TTS is unavailable on your key/tier ----
+gTTS>=2.5
+
 # ---- YouTube upload (OAuth via refresh token) ----
 google-api-python-client>=2.100
 google-auth>=2.30

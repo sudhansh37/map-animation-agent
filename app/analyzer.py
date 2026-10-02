@@ -1,7 +1,12 @@
 """Gemini is the 'brain': it analyses the map and writes the animation plan
 and the YouTube metadata. Actual animation is done locally (see map_engine).
+
+Model names are resolved resiliently: an env override, then the configured
+model, then a candidate list, tried in order until one works. This keeps the
+pipeline working across different Gemini model tiers/keys.
 """
 import mimetypes
+import os
 from pathlib import Path
 
 from .config import ROOT, SECRETS, SETTINGS
@@ -16,6 +21,36 @@ def _client():
     return genai.Client(api_key=SECRETS.gemini_api_key)
 
 
+def _dedupe(items):
+    seen, out = set(), []
+    for item in items:
+        if item and item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+
+def text_model_candidates():
+    env = os.getenv("GEMINI_MODEL", "").strip()
+    configured = SETTINGS["gemini"].get("analysis_model")
+    candidates = SETTINGS["gemini"].get("analysis_model_candidates", [])
+    return _dedupe(([env] if env else []) + [configured] + list(candidates))
+
+
+def available_models():
+    """Best-effort list of model ids the key can see (for debugging)."""
+    try:
+        client = _client()
+        names = []
+        for model in client.models.list():
+            name = getattr(model, "name", "") or ""
+            names.append(name.replace("models/", ""))
+        return names
+    except Exception as exc:  # noqa: BLE001
+        print(f"[analyzer] could not list models: {exc}")
+        return []
+
+
 def _mime(path) -> str:
     mime, _ = mimetypes.guess_type(str(path))
     return mime or "image/jpeg"
@@ -25,6 +60,20 @@ def _fill(template: str, mapping: dict) -> str:
     for key, value in mapping.items():
         template = template.replace(f"__{key}__", str(value))
     return template
+
+
+def _generate(client, models, contents, config, label):
+    """Try each candidate model in order and return the first success."""
+    errors = []
+    for model in models:
+        try:
+            response = client.models.generate_content(model=model, contents=contents, config=config)
+            print(f"[analyzer] {label}: using model {model}")
+            return response
+        except Exception as exc:  # noqa: BLE001 - try the next candidate
+            errors.append(f"{model}: {exc}")
+            print(f"[analyzer] {label}: model {model} failed -> {exc}")
+    raise RuntimeError(f"All candidate models failed for {label}:\n" + "\n".join(errors))
 
 
 def analyze_map(image_path, topic="", language=None, duration=None, style=None) -> dict:
@@ -44,21 +93,17 @@ def analyze_map(image_path, topic="", language=None, duration=None, style=None) 
 
     image_bytes = Path(image_path).read_bytes()
     image_part = types.Part.from_bytes(data=image_bytes, mime_type=_mime(image_path))
-
+    config = types.GenerateContentConfig(response_mime_type="application/json")
     client = _client()
-
-    def _call():
-        response = client.models.generate_content(
-            model=SETTINGS["gemini"]["analysis_model"],
-            contents=[prompt, image_part],
-            config=types.GenerateContentConfig(response_mime_type="application/json"),
-        )
-        return extract_json(response.text)
+    models = text_model_candidates()
 
     try:
-        return _call()
-    except Exception:  # one retry, per the spec's error-handling rule
-        return _call()
+        response = _generate(client, models, [prompt, image_part], config, "map analysis")
+        return extract_json(response.text)
+    except Exception as exc:  # one retry, per the spec's error-handling rule
+        print(f"[analyzer] analysis attempt failed ({exc}); retrying once")
+        response = _generate(client, models, [prompt, image_part], config, "map analysis (retry)")
+        return extract_json(response.text)
 
 
 def generate_metadata(topic, title, hook, narration, language) -> dict:
@@ -76,10 +121,7 @@ def generate_metadata(topic, title, hook, narration, language) -> dict:
             "LANGUAGE": language,
         },
     )
+    config = types.GenerateContentConfig(response_mime_type="application/json")
     client = _client()
-    response = client.models.generate_content(
-        model=SETTINGS["gemini"]["analysis_model"],
-        contents=prompt,
-        config=types.GenerateContentConfig(response_mime_type="application/json"),
-    )
+    response = _generate(client, text_model_candidates(), prompt, config, "metadata")
     return extract_json(response.text)

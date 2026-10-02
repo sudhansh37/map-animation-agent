@@ -25,6 +25,10 @@ def pick_map(explicit=None) -> Path:
         return path
     files = sorted(p for p in (ROOT / "input").glob("*") if p.suffix.lower() in IMAGE_SUFFIXES)
     if not files:
+        sample = ROOT / "assets" / "sample_map.png"
+        if sample.exists():
+            print("[main] no map in input/, using the bundled sample map")
+            return sample
         raise SystemExit("No map image found in input/. Put a PNG/JPG there.")
     return files[0]
 
