@@ -71,7 +71,7 @@ def render_video(engine, plan, out_path, narration=None, music=None, srt=None) -
     if narration_idx is not None and music_idx is not None:
         filters.append(f"[{narration_idx}:a]volume=1.0[na]")
         filters.append(f"[{music_idx}:a]volume={volume}[mu]")
-        filters.append("[na][mu]amix=inputs=2:duration=first:dropout_transition=0[aout]")
+        filters.append("[na][mu]amix=inputs=2:duration=longest:dropout_transition=0[aout]")
         audio_map = "[aout]"
     elif narration_idx is not None:
         audio_map = f"{narration_idx}:a"
@@ -94,7 +94,12 @@ def render_video(engine, plan, out_path, narration=None, music=None, srt=None) -
     cmd += ["-map", "0:v"]
     if audio_map:
         cmd += ["-map", audio_map, "-c:a", "aac", "-b:a", "192k"]
-    cmd += ["-shortest", str(out_path)]
+    # Cap the output at the planned duration instead of -shortest, so a short
+    # narration does not truncate the video.
+    duration = float(plan.get("duration", 0) or 0)
+    if duration > 0:
+        cmd += ["-t", f"{duration:.3f}"]
+    cmd += [str(out_path)]
 
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     proc = subprocess.Popen(
